@@ -1,0 +1,178 @@
+############################### rclone #########################################
+# mount onedrive 
+rclone --vfs-cache-mode writes mount oneDrive: ~/onedrive
+
+############################### FASTQC #########################################
+
+# store unique identifiers of samples in a text document
+ls *.fastq | sed -e 's/\(.*\)_.*$/\1/' | sort | uniq > sample_uniqueIDs.txt
+
+
+#---------------------------- paired-end --------------------------------------#
+for i in $(cat sample_uniqueIDs.txt); do ../reports/FastQC/fastqc -t 8 "$i"_1.fastq "$i"_2.fastq -o ../fastqc_reports5 ; done
+
+
+#------------------------ single-end ------------------------------------------#
+for i in $(cat sample_uniqueIDs.txt); do ../../rna_seq_preprocess/reports/FastQC/fastqc -t 8 "$i" -o ../fastqc_reports6 ; done
+
+
+# perform multiqc operation
+multiqc 
+
+########################## Trimming ############################################
+# trimming parameters should be set up to remove primarily adapter sequences
+
+# Suggested adapter sequences are provided for TruSeq2 (as used in GAII machines) and TruSeq3 (as used by HiSeq and MiSeq machines), for both single-end and paired-end mode.
+
+# “TruSeq Universal Adapter” or “TruSeq Adapter, Index …” indicates TruSeq-3 libraries, and the appropriate adapter files are “TruSeq3-SE.fa” or “TruSeq3-PE.fa”, for single-end and paired-end data respectively. 
+
+
+#---------------------------- paired-end --------------------------------------#
+# Firstly, download TruSeq3-PE.fa in the raw data folder
+wget https://raw.githubusercontent.com/timflutre/trimmomatic/master/adapters/TruSeq3-PE.fa
+
+for i in $(cat sample_uniqueIDs.txt);  
+do java -jar ../../Trimmomatic-0.39/trimmomatic-0.39.jar PE -threads 8 "$i"_1.fastq.gz "$i"_2.fastq.gz "$i"_1P.fastq.gz "$i"_1U.fastq.gz "$i"_2P.fastq.gz "$i"_2U.fastq.gz -trimlog "$i".log ILLUMINACLIP:TruSeq3-PE.fa:2:30:10;
+echo "$i has been trimmed"
+done
+echo "Trimmomatic has finished trimming the reads"
+
+!!!!!!!!!!!!!!!!
+for i in $(cat sample_uniqueIDs.txt);  
+do mv ../onedrive/raw6/"$i"_1.fastq.gz ../onedrive/raw6/"$i"_2.fastq.gz .
+java -jar ../Trimmomatic-0.39/trimmomatic-0.39.jar PE -threads 8 "$i"_1.fastq.gz "$i"_2.fastq.gz "$i"_1P.fastq.gz "$i"_1U.fastq.gz "$i"_2P.fastq.gz "$i"_2U.fastq.gz -trimlog "$i".log MINLEN:150;
+echo "$i has been trimmed"
+mv "$i"* ../onedrive/raw6
+done
+echo "Trimmomatic has finished trimming the reads"
+!!!!!!!!!!!!!!!!!!!
+
+
+#---------------------------- single-end --------------------------------------#
+
+
+
+
+#--------------------- Quality inspection after trimming ----------------------#
+ls *.fastq | sed -e 's/\(.*\)_.*$/\1/' | sort | uniq > sample_uniqueIDs.txt
+
+
+for i in $(cat ~/samples_trimmed.txt);  
+do  
+  fastqc -t 4 $RAW/"$i"trimmed_sub.1.fastq $RAW/"$i"trimmed_sub.2.fastq -o $FQC; 
+done
+
+# perform multiqc operation
+multiqc $FQC -o $FQC
+
+
+################ Reads alignment with STAR #####################################
+
+#------------------------------ Genome Generate -------------------------------#
+
+# download human genome and annotation files in the human genome folder
+# https://ftp.ensembl.org/pub/release-109/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz
+# https://ftp.ensembl.org/pub/release-109/gtf/homo_sapiens/Homo_sapiens.GRCh38.109.gtf.gz
+
+
+# Generate human genome
+# adjust --sjdbOverhang parameter. Set to the length of the strength minus one
+STAR --runMode genomeGenerate --genomeDir ref/ --genomeFastaFiles human_genome/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa --sjdbGTFfile human_genome/Homo_sapiens.GRCh38.109.gtf --sjdbOverhang 149 --outFileNamePrefix chr38 runThreadN 8 
+
+
+#--------------------------- Read Alignment -----------------------------------#
+
+# Run the STAR alignment within the folder containing raw reads.
+# Use --outSAMtype BAM Unsorted. Sort the BAM files afterwards with samtools
+# to save computational resources.
+# Reduce the number of threads while aligning reads in case of an error 
+
+# store unique numbers of samples in the text document
+ls *.fastq | sed -e 's/\(.*\)_.*$/\1/' | sort | uniq > sample_uniqueIDs.txt
+
+#********************************* Paired-end *********************************#
+for file in $(cat sample_uniqueIDs.txt)
+do 
+  STAR --runMode alignReads --genomeDir ../../rna_seq_preprocess/ref/ --outSAMtype BAM Unsorted --readFilesIn "${file}_1.fastq" "${file}_2.fastq" --runThreadN 8 --outFileNamePrefix ../BAM5/${file} --alignEndsType EndToEnd 
+done
+
+
+#****************************** Single-end ************************************#
+for file in $(cat sample_uniqueIDs.txt); do STAR --runMode alignReads --genomeDir ../ref/ --outSAMtype BAM Unsorted --readFilesIn "${file}.fastq" --runThreadN 8 --outFileNamePrefix ../BAM3/${file} --alignEndsType EndToEnd; done
+
+
+#--------------------------- Sorting BAM Files --------------------------------#
+# sort unsorted BAM files
+for file in $(cat sample_uniqueIDs.txt); do samtools sort -@ 8 -o ../BAM5/sorted_${file}.bam ../BAM5/${file}Aligned.out.bam; done
+
+
+
+
+################################ Generating Count Tables #######################
+
+# If you have paired-end data, pay attention to the -r option.
+# The script outputs a table with counts for each feature, followed by the special counters, which count reads that were not counted for any feature for various reasons. The names of the special counters all start with a double underscore, to facilitate filtering.
+
+# for the paired-end reads use: -s yes
+# for the single-end reads use: -s no
+# gff_files is in the human genome gff annotation file
+# the output file will be in SAM format
+
+
+#-------------------------------- Paired End ----------------------------------#
+for i in $(cat samples.txt); do 
+htseq-count -f bam -r pos -s yes -t exon -i gene_id --additional-attr=gene_version ${i} ../human_genome/Homo_sapiens.GRCh38.109.gtf > ./${i}_counts.txt
+echo "Count table generated for $i"; done
+
+
+#------------------------------ Single End ------------------------------------#
+for i in $(cat samples.txt); do 
+htseq-count -f bam -r pos -s no -t exon -i gene_id --additional-attr=gene_version ${i} ../human_genome/Homo_sapiens.GRCh38.109.gtf > ./${i}_counts.txt
+echo "Count table generated for $i"; done
+
+
+
+
+
+########################### Joined Counts CSV File #############################
+
+# store the names of the count files
+ls sorted* > samples1.txt
+
+# combine ensemblID with a version number and save as CSV files
+for i in $(cat samples1.txt); do
+    awk -v OFS=',' '{print $1 "." $2, $3}' $i > v_${i%.txt}.csv
+done
+
+#------------------------- Combine Counts -------------------------------------#
+# locate yourself within the folder containing count tables
+
+# store the names of the count files generated in the previous step
+ls v_* > samples2.txt
+
+# Read the first filename from samples1.txt and store it in the file1 variable
+input="samples2.txt"
+read -r file1 < "$input"
+sort -k1,1 "$file1" > joined.csv
+
+# loop through the rest of the lines in samples2.txt
+while read -r file2; do
+    # Perform the join with the sorted files and save the result in joined.csv
+    join -t',' -j 1 joined.csv <(sort -k1,1 "$file2") > joined_file.csv
+    mv joined_file.csv joined.csv
+done < "$input"
+
+#----------------------------- Add the Header ---------------------------------#
+# store unique sample numbers in samples3.txt
+ls sorted* | sed -e 's/^sorted_\([^.]\+\)\..*/\1/g' > samples3.txt
+
+# store the first line in samples3.txt as a header
+read -r header < samples3.txt 
+
+# loop through the rest of the lines in samples3.txt
+while read -r header2; do
+  header=($header,$header2)
+done < samples3.txt
+
+# add the header row as the first row in joined.csv
+sed -i -e "1i$header" joined.csv
