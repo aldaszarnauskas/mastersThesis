@@ -23,7 +23,7 @@ library(forcats)
 ################################################################################
 
 # load differential expression data
-all_DE_res <- readRDS('C:/Users/aldas/OneDrive/Bioinformatics/master_thesis/scripts_data/kidney_cancer/Figures_DE/all_DE_results.rds')
+all_DE_res <- readRDS('C:/Users/aldas/OneDrive/Bioinformatics/master_thesis/scripts_data/kidney_cancer/DE_plots/all_DE_results.rds')
 
 
 ### ---------------------------------- GSEA --------------------------------- ##
@@ -166,7 +166,7 @@ gsea_plots <- function(gsea_results, pathNR){
   gse.topDescription <- gse.top$Description
   
   # order gsea results object by abs(NES)
-  y <- mutate(GSEA_threedatasetsPEchRCC_vs_normal, ordering = abs(NES)) %>%
+  y <- mutate(gsea_results, ordering = abs(NES)) %>%
     arrange(desc(ordering)) 
   
   # filter the y object to contain only the top pathways
@@ -199,10 +199,13 @@ gsea_plots <- function(gsea_results, pathNR){
   
   ggsave(paste(substitute(gsea_results), 'pathway_enrichment', '.png', sep = ''),
          dpi = 1000,
-         width = 10, height = 5)
+         width = 10, height = 10)
   
 }
 
-gsea_plots(GSEA_threedatasetsPEchRCC_vs_normal, 10)
-
-
+gsea_plots(GSEA_threedatasetsPEchRCC_vs_normal, 20)
+gsea_plots(GSEA_threedatasetsPEccRCC_vs_normal, 10)
+gsea_plots(GSEA_threedatasetsPEpRCC_vs_normal, 10)
+gsea_plots(GSEA_threedatasetsPEccRCC_vs_chRCC, 10)
+gsea_plots(GSEA_threedatasetsPEpRCC_vs_chRCC, 10)
+gsea_plots(GSEA_threedatasetsPEpRCC_vs_ccRCC, 10)

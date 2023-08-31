@@ -12,8 +12,8 @@
 # generates two sets of plots, one set represents data without tumour purity
 # estimation and the other set represents data with tumour purity estimation.
 
-#Clear environment
-rm(list=ls()) 
+# Clear environment
+rm(list=ls(all.names = TRUE)) 
 
 ### ----------------------------- Libraries --------------------------------- ##
 ################################################################################

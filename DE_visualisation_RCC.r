@@ -4,8 +4,8 @@
 # Last time updated: 26/008/2023
 # Objective: Visualise DE results
 
-#Clear environment
-rm(list=ls()) 
+# Clear environment
+rm(list=ls(all.names = TRUE)) 
 
 ### ----------------------------- Libraries --------------------------------- ##
 ################################################################################
