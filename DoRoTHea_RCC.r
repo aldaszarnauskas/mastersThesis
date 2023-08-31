@@ -1,4 +1,4 @@
-# Author: Aideen McCabe, modified by Aldas Žarnauskas
+# Author: Aldas Žarnauskas
 # Title: Transcription Factor Analysis (TFA)
 # Date: 26/006/2023
 # Last time updated: 22/008/2023
