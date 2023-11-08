@@ -1,5 +1,27 @@
 # mastersThesis
 
-In this repository, I keep scripts used in my master's thesis to get an M.Sc. in Bioinformatics and Computational Biology degree.
-Scripts comprise bash and R scripts. The bash script was used to inspect the quality of raw RNA-seq gene expression data followed by read alignment and count table generation. R scripts were used to perform various analyses including differential gene expression, gene set enrichment analysis, single sample gene set enrichment analysis and transcription factor enrichment analysis.
-I have also uploaded my master's thesis.
+mastersThesis repository contains scripts used by Aldas Žarnauskas to conduct his master's project. The project used raw RNA-seq data followed by various downstream analyses, including differential gene expression analysis (DGEA), gene set enrichment analysis (GSEA), single sample gene set enrichment analysis (ssGSEA) and transcription factor enrichment analysis (TFEA).
+
+Objectives of scripts:
+CountGenerationBASH.txt - take raw RNA-seq counts and generate a count table
+
+MSigDB_RCC.r - obtain RNA-seq metadata
+
+mSigDB_ras_raas.r - obtain renin-angiotensin system genes information
+
+tumourpurityESTIMATE_RCC.r - estimate tumour purity in the RNA-seq counts.
+
+Preproessing.r - preprocess RNA-seq count tables (e.g. batch removal, normalisation, initial visualisation)
+
+DEAnalysis_RCC.R - perform DGEA 
+
+DE_visualisation_RCC.r - visualise DGEA results
+
+DoRoTHea_RCC.r - perform TFEA
+
+GSEA_clusterProfiler_RCC.r - perform GSEA
+
+ssGSEA_RCC.r - perform ssGSEA
+
+
+
